@@ -15,9 +15,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Scanner;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import org.apache.tools.ant.Task;
 
@@ -87,7 +85,6 @@ public class FileSearch extends Task {
 						FoundFile foundFile = fileContains(file.toFile(),
 								searchTerm);
 						if (null != foundFile) {
-							System.out.println(file.toString());
 							foundFiles.add(foundFile);
 						}
 
@@ -124,7 +121,8 @@ public class FileSearch extends Task {
 			while ((line = lineReader.readLine()) != null) {
 				if (line.contains(str)) {
 					if (null == foundFile) {
-						foundFile = new FileSearch.FoundFile(file.getAbsolutePath().toString());
+						foundFile = new FileSearch.FoundFile(file
+								.getAbsolutePath().toString());
 					}
 					foundFile.addLineNumber(lineNum);
 				}
@@ -148,7 +146,9 @@ public class FileSearch extends Task {
 		} finally {
 			writer.close();
 		}
-		System.out.println("done");
+		System.out.println("found "+files.size()+" with term '"+term+"'");
+		System.out.println("report available @ "+outputfile);
+
 	}
 
 	private static class FoundFile {
@@ -172,7 +172,5 @@ public class FileSearch extends Task {
 		public void addLineNumber(int lineNumber) {
 			this.lines.add(new Integer(lineNumber));
 		}
-
 	}
-
 }
