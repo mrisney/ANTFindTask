@@ -145,7 +145,7 @@ public class FileSearch extends Task {
 		} finally {
 			writer.close();
 		}
-		System.out.println("found "+files.size()+" with term '"+term+"'");
+		System.out.println("found "+files.size()+" file(s) with term '"+term+"'");
 		System.out.println("report available @ "+outputfile);
 
 	}
