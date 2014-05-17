@@ -2,7 +2,9 @@ package com.sfdc.bsc.utils.ant;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.LineNumberReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.file.FileVisitResult;
@@ -24,7 +26,7 @@ public class FileSearch extends Task {
 	private String term;
 	private String initialpath;
 	private String outputfile;
-	private Collection<FoundFile> foundFiles = new HashSet<FoundFile>();
+	private Collection<FoundFile> foundFiles;
 
 	public void setTerm(String term) {
 		this.term = term;
@@ -57,7 +59,7 @@ public class FileSearch extends Task {
 			setOutputFile(getProject().getProperty("outputfile"));
 
 		}
-
+		foundFiles = new HashSet<FoundFile>();
 		searchDirectory(initialpath, term);
 		try {
 			writeFileNames(foundFiles);
@@ -110,26 +112,28 @@ public class FileSearch extends Task {
 			final String str) throws IOException {
 
 		FileSearch.FoundFile foundFile = null;
+		FileReader fileReader = null;
+		LineNumberReader lineReader = null;
+		try {
 
-		Pattern searchPattern = Pattern.compile(str);
-		String match;
-		int i = 0;
-		try (Scanner scanner = new Scanner(file, "UTF-8")) {
-			scanner.findInLine(searchPattern);
+			fileReader = new FileReader(file);
+			lineReader = new LineNumberReader(fileReader);
 
-			while (scanner.hasNext()) {
-				if ((match = scanner.findInLine(searchPattern)) != null) {
+			String line = null;
+			int lineNum = 1;
+			while ((line = lineReader.readLine()) != null) {
+				if (line.contains(str)) {
 					if (null == foundFile) {
-						FileSearch fileSearch = new FileSearch();
-						foundFile = fileSearch.new FoundFile(file.getAbsolutePath());
-
+						foundFile = new FileSearch.FoundFile(file.getAbsolutePath().toString());
 					}
-					foundFile.addLineNumber(i);
-
+					foundFile.addLineNumber(lineNum);
 				}
-				i++;
-				scanner.next();
+				lineNum++;
 			}
+
+		} finally {
+			if (fileReader != null)
+				fileReader.close();
 		}
 		return foundFile;
 	}
@@ -138,14 +142,16 @@ public class FileSearch extends Task {
 		Writer writer = new OutputStreamWriter(new FileOutputStream(outputfile));
 		try {
 			for (FoundFile foundFile : files) {
-				writer.write(foundFile.getFileName() + "\n");
+				writer.write(foundFile.getFileName() + ", Line number : "
+						+ foundFile.getLines().toString() + "\n");
 			}
 		} finally {
 			writer.close();
 		}
+		System.out.println("done");
 	}
 
-	class FoundFile {
+	private static class FoundFile {
 
 		private String fileName;
 		private Set<Integer> lines;
