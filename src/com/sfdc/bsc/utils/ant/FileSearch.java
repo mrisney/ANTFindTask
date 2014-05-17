@@ -48,8 +48,7 @@ public class FileSearch extends Task {
 
 		if (getProject().getProperty("term") != null) {
 			setTerm(getProject().getProperty("term"));
-			System.out
-					.println("looking for any files that contain the word : '"
+			System.out.println("looking for any files that contain the word : '"
 							+ term + "'");
 		}
 
