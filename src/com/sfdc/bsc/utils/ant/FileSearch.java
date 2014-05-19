@@ -7,13 +7,6 @@ import java.io.IOException;
 import java.io.LineNumberReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -24,7 +17,6 @@ public class FileSearch extends Task {
 	private String term;
 	private String initialpath;
 	private String outputfile;
-	private Collection<FoundFile> foundFiles;
 
 	public void setTerm(String term) {
 		this.term = term;
@@ -48,7 +40,8 @@ public class FileSearch extends Task {
 
 		if (getProject().getProperty("term") != null) {
 			setTerm(getProject().getProperty("term"));
-			System.out.println("looking for any files that contain the word : '"
+			System.out
+					.println("looking for any files that contain the word : '"
 							+ term + "'");
 		}
 
@@ -56,77 +49,66 @@ public class FileSearch extends Task {
 			setOutputFile(getProject().getProperty("outputfile"));
 
 		}
-		foundFiles = new HashSet<FoundFile>();
-		searchDirectory(initialpath, term);
+
+		File root = new File(initialpath);
+		Set<FileSearch.FoundFile> foundFiles = new HashSet<FileSearch.FoundFile>();
+
+		foundFiles = recursiveSearch(root, foundFiles, term);
 		try {
 			writeFileNames(foundFiles);
 		} catch (Exception e) {
-
+			System.out.println("problem with write files " + e.toString());
 		}
 	}
 
-	private void searchDirectory(final String initalPath,
-			final String searchTerm) {
-		try {
-			Path startPath = Paths.get(initalPath);
-			Files.walkFileTree(startPath, new SimpleFileVisitor<Path>() {
-				@Override
-				public FileVisitResult preVisitDirectory(Path dir,
-						BasicFileAttributes attrs) {
-					return FileVisitResult.CONTINUE;
-				}
+	private Set<FileSearch.FoundFile> recursiveSearch(File fileObject,
+			Set<FileSearch.FoundFile> foundFiles, String searchTerm) {
 
-				@Override
-				public FileVisitResult visitFile(Path file,
-						BasicFileAttributes attrs) {
-
-					try {
-						FoundFile foundFile = fileContains(file.toFile(),
-								searchTerm);
-						if (null != foundFile) {
-							foundFiles.add(foundFile);
-						}
-
-					} catch (Exception e) {
-						System.out.println(e.toString());
-					}
-					return FileVisitResult.CONTINUE;
-				}
-
-				@Override
-				public FileVisitResult visitFileFailed(Path file, IOException e) {
-					return FileVisitResult.CONTINUE;
-				}
-			});
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		if (fileObject.isDirectory()) {
+			File allFiles[] = fileObject.listFiles();
+			for (File aFile : allFiles) {
+				recursiveSearch(aFile, foundFiles, searchTerm);
+			}
+		} else if (fileObject.isFile()) {
+			try {
+				FileSearch.FoundFile foundFile = fileSearch(fileObject,
+						searchTerm);
+				foundFiles.add(foundFile);
+			} catch (Exception e) {
+				System.out.println("error on recursiveSearch " + e.toString());
+			}
 		}
+		return foundFiles;
 	}
 
-	private static final FileSearch.FoundFile fileContains(final File file,
-			final String str) throws IOException {
+	private FileSearch.FoundFile fileSearch(File fileObject, String searchTerm)
+			throws IOException {
 
 		FileSearch.FoundFile foundFile = null;
 		FileReader fileReader = null;
 		LineNumberReader lineReader = null;
 		try {
 
-			fileReader = new FileReader(file);
+			fileReader = new FileReader(fileObject);
 			lineReader = new LineNumberReader(fileReader);
 
 			String line = null;
 			int lineNum = 1;
 			while ((line = lineReader.readLine()) != null) {
-				if (line.contains(str)) {
+				if (line.contains(searchTerm)) {
 					if (null == foundFile) {
-						foundFile = new FileSearch.FoundFile(file
+						foundFile = new FileSearch.FoundFile(fileObject
 								.getAbsolutePath().toString());
 					}
 					foundFile.addLineNumber(lineNum);
+					System.out.println("found '" + searchTerm + "' in file "
+							+ fileObject.getAbsolutePath() + " @ line number "
+							+ lineNum);
 				}
 				lineNum++;
 			}
+		} catch (Exception e) {
+			System.out.println("error on fileSearch" + e.toString());
 
 		} finally {
 			if (fileReader != null)
@@ -135,22 +117,27 @@ public class FileSearch extends Task {
 		return foundFile;
 	}
 
-	private void writeFileNames(Collection<FoundFile> files) throws IOException {
+	private void writeFileNames(Set<FileSearch.FoundFile> foundFiles)
+			throws IOException {
+
 		Writer writer = new OutputStreamWriter(new FileOutputStream(outputfile));
 		try {
-			for (FoundFile foundFile : files) {
-				writer.write(foundFile.getFileName() + ", Line number : "
-						+ foundFile.getLines().toString() + "\n");
+			for (FileSearch.FoundFile foundFile : foundFiles) {
+				if (null != foundFile) {
+					writer.write(foundFile.getFileName() + ", Line number : "
+							+ foundFile.getLines().toString() + "\n");
+				}
 			}
 		} finally {
 			writer.close();
 		}
-		System.out.println("found "+files.size()+" file(s) with term '"+term+"'");
-		System.out.println("report available @ "+outputfile);
+		System.out.println("found " + foundFiles.size()
+				+ " file(s) with term '" + term + "'");
+		System.out.println("report available @ " + outputfile);
 
 	}
 
-	private static class FoundFile {
+	private class FoundFile {
 
 		private String fileName;
 		private Set<Integer> lines;
@@ -161,6 +148,9 @@ public class FileSearch extends Task {
 		}
 
 		public String getFileName() {
+			if (null == fileName) {
+				fileName = new String();
+			}
 			return fileName;
 		}
 
